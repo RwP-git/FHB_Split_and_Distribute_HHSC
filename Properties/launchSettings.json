@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "FHB_Split_and_Distribute_HHSC": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\Richa\\OneDrive\\1R\\Hawaii\\TestingData\\FHB",
+      "workingDirectory": "C:\\Users\\Richa\\OneDrive\\1R\\Hawaii\\TestingData\\FHB"
+    }
+  }
+}

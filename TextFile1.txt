@@ -1,0 +1,106 @@
+            //IEnumerable<FHB_HspList> FhbAccts =
+            //from fhbAcctLine in FhbAcctsIn.Skip(1)
+            //let splitName = fhbAcctLine.Split(',')
+            //from activityLine in ActivityIn.Skip(1)
+            //let splitActivityLine = activityLine.Split(',')
+            //where Convert.ToInt32(splitName[0]) == Convert.ToInt32(splitActivityLine[0])
+            //select new FHB_HspList()
+            //{
+            //    ID = Convert.ToInt32(splitName[0]),
+            //    Facility = splitName[1],
+            //    Box = Convert.ToInt32(splitName[2]),
+            //    HspAcct = Convert.ToInt32(splitName[3]),
+            //    BoxAndAcct = splitName[4],
+            //    Hspnbr3 = Convert.ToInt32(splitName[5])
+
+            //    //FileProcessed = (from scoreAsText in splitScoreLine.Skip(1)
+            //    // select Convert.ToInt32(scoreAsText)).
+            //    //                 ToList()
+            //};
+            
+            
+            
+            // For Directory.GetFiles and Directory.GetDirectories
+// For File.Exists, Directory.Exists
+using System;
+using System.IO;
+using System.Collections;
+using System.Text.RegularExpressions;
+using ReaderRawLib;
+using FileProcessor;
+
+namespace FileProcessor
+{
+    public class RecursiveFileProcessor
+    {
+        public static void Main(string[] args)
+        {
+            foreach (string path in args)
+            {
+                if (File.Exists(path))
+                {
+                    // This path is a file
+                    ProcessFile(path);
+                }
+                else if (Directory.Exists(path))
+                {
+                    // This path is a directory
+                    ProcessDirectory(path);
+                }
+                else
+                {
+                    Console.WriteLine("{0} is not a valid file or directory.", path);
+                }
+            }
+        }
+
+        // Process all files in the directory passed in, recurse on any directories
+        // that are found, and process the files they contain.
+        public static void ProcessDirectory(string targetDirectory)
+        {
+            // Process the list of files found in the directory.
+            string[] fileEntries = Directory.GetFiles(targetDirectory);
+            foreach (string fileName in fileEntries)
+                ProcessFile(fileName);
+
+            // Recurse into subdirectories of this directory.
+            string[] subdirectoryEntries = Directory.GetDirectories(targetDirectory);
+            foreach (string subdirectory in subdirectoryEntries)
+                ProcessDirectory(subdirectory);
+        }
+
+        // Insert logic for processing found files here.
+        public static void ProcessFile(string path)
+        {
+            string[] splitString = GetFileLines(path);
+            
+
+            for (int i = 0; i < splitString.Length; i++)
+            {
+                string segm = splitString[i];
+                // TODO: Do something with the lines of the file we got back...
+                Console.WriteLine("Segment: {0}", segm);
+            }
+            Console.WriteLine(" ");
+            Console.WriteLine("Processed file '{0}'  with {1} lines.", path, splitString.Length);
+            Console.WriteLine(".............................................................. ");
+            Console.WriteLine(" ");
+        }
+
+        public static string[] GetFileLines(string path)
+        {
+            using (var reader = new StreamReader(path.Replace("username", Environment.UserName)))
+            {
+                // Read the User Regex Format and add it to List
+                string[] separator = new[] { "\r\n", "\r", "\n" };
+                string[] temp = GetSplitFile(reader, separator);
+                return temp;
+            }
+        }
+
+        private static string[] GetSplitFile(StreamReader reader, string[] separator)
+        {
+            return reader.ReadToEnd().Split(separator, options: StringSplitOptions.None);
+        }
+    }
+}

@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30413.136
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FHB_Split_and_Distribute_HHSC", "FHB_Split_and_Distribute_HHSC.csproj", "{A8C9C9C2-411F-45D2-A92F-05F080F994E6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{EE161B31-E44E-4307-B347-BA6CB46F0F7C}"
+	ProjectSection(SolutionItems) = preProject
+		Program.cs = Program.cs
+		TextFile1.txt = TextFile1.txt
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A8C9C9C2-411F-45D2-A92F-05F080F994E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8C9C9C2-411F-45D2-A92F-05F080F994E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8C9C9C2-411F-45D2-A92F-05F080F994E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8C9C9C2-411F-45D2-A92F-05F080F994E6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FF744276-1E3C-486E-8CB8-B886828B4991}
+	EndGlobalSection
+EndGlobal
