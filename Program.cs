@@ -14,6 +14,7 @@ using System.Linq;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Diagnostics;
+using FileHelpers;
 
 namespace FHB_Split_and_Distribute_HHSC
 {
@@ -25,11 +26,14 @@ namespace FHB_Split_and_Distribute_HHSC
         public string HspAcct { get; set; }
         public int Hspnbr3 { get; set; }
         public int ID { get; set; }
+        public string DestId { get; set; }
 
 
     }
+    [DelimitedRecord("\t")]
     public class FHB_Payment
     {
+
         public int FhChkd { get; set; }
         public decimal FhAmtd { get; set; }
         public string FhAc16 { get; set; }
@@ -56,6 +60,14 @@ namespace FHB_Split_and_Distribute_HHSC
 
         public static void Main(string[] args)
         {
+            // Check system name and set paths
+            if (args == null || args.Length == 0)
+            {
+                args = SetPathBySystem();
+            }
+
+
+
             // Process File(s) in Path
             foreach (string path in args)
             {
@@ -78,6 +90,26 @@ namespace FHB_Split_and_Distribute_HHSC
             }
         }
 
+        /// <summary>
+        /// Set project specific path when path or file is not passed in args. Base path on machine 
+        /// </summary>
+        private static string[] SetPathBySystem()
+        {
+            var _machine = Environment.MachineName;
+            string[] _argpath = new string[1];
+            Console.WriteLine("Setting path for MachineName: {0}", _machine);
+
+            if (_machine == "EXPANSE") { _argpath[0] = @"C:\Users\Richa\OneDrive\1R\Hawaii\FHB_Testing\FHB"; }
+
+            else if (_machine == "HHSCCONVM01" || _machine == "ECCONTROL3") { _argpath[0] = "C:\\Users\\rpearce\\Documents\\FHB"; }
+
+            //TBD new server
+            else if (_machine == "NewServerName") { _argpath[0] = "C:\\Users\\rpearce\\Documents\\FHB"; }
+
+            return _argpath;
+
+        }
+
 
         // Process all files in the directory passed in, //*removed(not doing subdirectories): and recurse on any subdirectories*//
         public static void ProcessDirectory(string targetDirectory)
@@ -96,40 +128,40 @@ namespace FHB_Split_and_Distribute_HHSC
             foreach (string fileName in fileEntries)
                 ProcessFile(fileName);
 
-            // Remove subdirectory processing, Hold for selective historical rebuilding
-            ///    Recurse into subdirectories of this directory.
-            ///     string[] subdirectoryEntries = Directory.GetDirectories(targetDirectory);
-            ///     foreach (string subdirectory in subdirectoryEntries)
-            ///     ProcessDirectory(subdirectory);
+            // Remove subdirectory processing, Hold code for selective historical rebuilding
+            // Recurse into subdirectories of this directory.
+            //  //string[] subdirectoryEntries = Directory.GetDirectories(targetDirectory);
+            //  //foreach (string subdirectory in subdirectoryEntries)
+            //  //ProcessDirectory(subdirectory);
         }
 
 
         public static void ProcessFile(string path)
         {
-            // Collect & prep misc info and records for payment file
-            int[] accountCountLines = new int[10];
+            // Collect & prep misc info and records for payment file and pre-loop work fields
+            int[] countBoxAcctRows = new int[10];
             int lines = File.ReadAllLines(path).Length;
             string[] records = File.ReadAllLines(path);
-            int i = 0; int cnt = 0; string newName = ""; string newXlsName = " "; // pre-loop
+            int i = 0; int cnt = 0; string newName = ""; string newXlsName = " "; 
             Snap($"........Processing....... {Path.GetFileName(path)}", 1, 0);
-            List<FHB_BoxAccts> accts = AcctList();
+            List<FHB_BoxAccts> accts = BoxAccts();
             List<FHB_Payment> rcds = PmtList(records, accts);
 
 
 
             foreach (var FHB_BoxAccts in accts)
             {
-                accountCountLines[i] = File.ReadAllLines(path).Count(l => l.Contains(accts[i].BoxAndAcct));
+                countBoxAcctRows[i] = File.ReadAllLines(path).Count(l => l.Contains(accts[i].BoxAndAcct));
 
-                Snap($"Index {i} for {accts[i].Facility} - {accts[i].BoxAndAcct} has a count of:  {accountCountLines[i]} lines", 0, 0);
-                cnt = accountCountLines[i];
+                Snap($"BoxAndAcct {accts[i].BoxAndAcct} for {accts[i].Facility} has a count of:  {countBoxAcctRows[i]} lines (Index {i})", 1, 0);
+                cnt = countBoxAcctRows[i];
 
                 // If records found for Hospitals LockBox ID and Account number, create split file of transactions.
                 if (cnt > 0)
                 {
                     // Split and Write separate distribution file for Facility, in original format
 
-                    newName = path.Replace(".txt", "_S_FHB_") + accts[i].Facility + ".txt";
+                    newName = path.Replace(".txt", ("_" + accts[i].DestId + "_FHB_")) + accts[i].Facility + ".txt";
                     if (File.Exists(newName))
                     {
                         File.Delete(newName);
@@ -145,13 +177,16 @@ namespace FHB_Split_and_Distribute_HHSC
                             }
                         }
                         sw.Close();
-                        DisplayResult(cnt, accts[i].Facility, accts[i].BoxAndAcct, path, newName, (Path.GetFileName(path)));
-
+                        
+                        Snap($"New file '{newName}' \n\t\t\twritten from inbound file {Path.GetFileName(path)} with {cnt} records, for Facility {accts[i].Facility}.", 1, 1);
                     }
 
-                    // XLS REPORT for Facility ....
+
+
+                    // Generate payment report for facility in .xls (tab delimited) format
                     newXlsName = (Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path))) +
-                                  "_FHB_Payments_" + accts[i].Facility + ".xls";
+                                  "_FHB_Payments_" + ("_" + accts[i].DestId + "_") + accts[i].Facility + ".xls";
+                   
                     if (File.Exists(newXlsName))
                     {
                         File.Delete(newXlsName);
@@ -164,7 +199,7 @@ namespace FHB_Split_and_Distribute_HHSC
                         // TITLES and Column Header
                         xl.WriteLine("\tFIRST HAWAIIAN BANK LOCK BOX PAYMENTS for " + accts[i].Facility);
                         xl.WriteLine("\tFile name " + Path.GetFileName(path) + " processed on " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString());
-                        xl.WriteLine("\t" + accountCountLines[i] + " payment records written to: " + newName + "\n");
+                        xl.WriteLine("\t" + countBoxAcctRows[i] + " payment records written to: " + Path.GetFileName(newName) + "\n");
                         xl.WriteLine("\tHospital\tPayment Date\tAccount#\tPayment Amt\tAmount Due\tStatement Date\t" + "Admit/Other Date\tLockBox#");
 
                         foreach (FHB_Payment rcd in rcds.Where(k => k.F1BoxAcct == accts[i].BoxAndAcct))
@@ -184,32 +219,34 @@ namespace FHB_Split_and_Distribute_HHSC
                         // Write total payments line(s)
                         xl.WriteLine("\t\t\t" + " Total =" + "\t" + String.Format("{0:C2}", totalPmts));
                         xl.Close();
-                        DisplayResult(cnt, accts[i].Facility, accts[i].BoxAndAcct, path, newName, (Path.GetFileName(path)));
+                        
+                        Snap($"Report (tab delimited .xls file) '{newXlsName}' \n\t\t\twritten with total payments of {totalPmts} for Facility {accts[i].Facility} ", 0, 1);
 
                     }
                 }
 
                 i++;
             }
-            int totalBoxCounts = accountCountLines.Sum();
+            int totalBoxCounts = countBoxAcctRows.Sum();
             Snap($"Processed file '{Path.GetFileName(path)}' with {lines} total lines, {totalBoxCounts} written to separate files, at {DateTime.Now}.", 1, 0);
-            Snap("..........................................................................................................", 0, 1);
+            Snap(string.Concat(Enumerable.Repeat("_", 70)), 0, 1);
 
-            WriteFullList(path, lines, rcds, totalBoxCounts);
+            WriteFullList(path, lines, rcds, totalBoxCounts); 
             AppendHistory(path, rcds);
+            AppendAllPaymentsDump(path, rcds);
+            File.Move(path, path + ".Processed");
         }
 
+     
 
-
-        private static List<FHB_BoxAccts> AcctList()
+        private static List<FHB_BoxAccts> BoxAccts()
         {
             // Load First Hawaiian LockBox IDs and name strings for Hospitals
-            string[] FhbAcctsIn = File.ReadAllLines(@"FHB_Facility_BoxAccounts.csv");
-            string[] ActivityIn = File.ReadAllLines(@"FHB_FileResults.csv"); // future
+            string[] _boxAcctsIn = File.ReadAllLines(@"Logs_n_Data\FHB_Facility_BoxAccounts.csv");
 
             // Load to class list
-            IEnumerable<FHB_BoxAccts> FhbAccts =
-            from fhbAcctLine in FhbAcctsIn.Skip(1)
+            IEnumerable<FHB_BoxAccts> _fhbAccts =
+            from fhbAcctLine in _boxAcctsIn.Skip(1)
             let splitName = fhbAcctLine.Split(',')
             select new FHB_BoxAccts()
             {
@@ -218,10 +255,11 @@ namespace FHB_Split_and_Distribute_HHSC
                 Box = Convert.ToString(splitName[2]),
                 HspAcct = Convert.ToString(splitName[3]),
                 Hspnbr3 = Convert.ToInt32(splitName[4]),
-                ID = Convert.ToInt32(splitName[5])
+                ID = Convert.ToInt32(splitName[5]),
+                DestId = (splitName[6])
             };
 
-            List<FHB_BoxAccts> acct = FhbAccts.ToList();
+            List<FHB_BoxAccts> acct = _fhbAccts.ToList();
             return acct;
         }
 
@@ -260,15 +298,6 @@ namespace FHB_Split_and_Distribute_HHSC
         }
 
 
-        private static void DisplayResult(int hspCount, string facility, string boxAndAcct, string origPath, string newName, string fileName)
-        {
-            Snap(
-                $"New file '{newName}' " +
-                $"\n     written from inbound file {fileName} " +
-                $"\n     with {hspCount} records, for Facility {facility}.", 1, 1);
-        }
-
-
 
         /// <summary>
         /// Converts a string to a dateTime with the given format and kind.
@@ -300,9 +329,11 @@ namespace FHB_Split_and_Distribute_HHSC
 
         private static void AppendHistory(string path, List<FHB_Payment> rcds)
         {
-            string newXlsName = Path.Combine(Path.GetDirectoryName(path), "_FHB_All_Payment_History.txt");
-            using StreamWriter xh = File.AppendText(newXlsName);
-            foreach (FHB_Payment rcd in rcds)
+            // Write (.xls tab delimited type) FHB_All_Payment_History.txt
+            string histFileName = Path.Combine(Path.GetDirectoryName(path),"Logs_n_Data", "FHB_All_Payment_History.txt");
+            using StreamWriter xh = File.AppendText(histFileName);
+            xh.WriteLine("\n");
+                foreach (FHB_Payment rcd in rcds)
             {
                 // Payment detail lines
                 xh.WriteLine("\t" +
@@ -314,45 +345,39 @@ namespace FHB_Split_and_Distribute_HHSC
                    rcd.F1Stmt.ToShortDateString() + "\t" +
                    rcd.F1Admt.ToShortDateString() + "\t" +
                    rcd.FhBoxn + "\t" +
+                   rcd.FhAcct + "\t" +
+                   rcd.F1BoxAcct + "\t" +
                    Path.GetFileName(path) + "\t" +
                    DateTime.Now.ToString());
 
             }
             xh.Close();
+            string _x = histFileName.Replace(".txt", "xls");
+            File.Copy(histFileName, _x, true); 
 
-            string newXlsName2 = (Path.Combine(Path.GetDirectoryName(path), Path.GetFileName(path).Substring(0, 20) + "_2FHB_All_Payment_History.txt"));
-            using StreamWriter xh2 = File.AppendText(newXlsName2);
-
-            //foreach (FHB_Payment rcd in rcds)
-            // {
-            // Dump payment rcd to xls
-            string tabbedData = GetConcatedString(rcds);  // ,"\t"); 
-            xh2.WriteLine("\t   {0} \n", tabbedData);
-
-            //}
-            xh2.Close();
-
-            string GetConcatedString<T>(List<T> listItems)  //, char delimiter)
-            {
-                char[] delimiter = "\t".ToCharArray();
-                var fields = Type.GetType(listItems.GetType().GetGenericArguments()[0].FullName).GetProperties();
-                return string.Join("", listItems.Select(x =>
-                                 string.Join(delimiter[0], fields.Select(f => f.GetValue(x))).TrimEnd(delimiter[0])));
-            }
+            
         }
 
+        private static void AppendAllPaymentsDump(string path, List<FHB_Payment> rcds)
+        {
+            // Write emulated CPWFHBP1 database. Append records to History File
+            string newXlsName2 = (Path.Combine(Path.GetDirectoryName(path), "Logs_n_Data", Path.GetFileName(path).Substring(0, 12) + "_All_Payment_History_tab.txt"));
+            FileHelperEngine<FHB_Payment> engine = new FileHelperEngine<FHB_Payment>();
+            engine.AppendToFile(newXlsName2, rcds);
+        }
 
         private static void WriteFullList(string path, int lines, List<FHB_Payment> rcds, int totalBoxCounts)
         {
+            // Single File/Day with dated name, for analysis as needed.  All payments from todays file.
             decimal totalPmts = 0;
             string newXlsName = (Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path))) +
-                                  "_FHB_All_Payments.xls";
+                                  "_Payment_list.xls";
             using StreamWriter xa = File.AppendText(newXlsName);
             // TITLES and Column Header
             xa.WriteLine("\tFIRST HAWAIIAN BANK LOCK BOX PAYMENTS, Full List of ALL Payments");
             xa.WriteLine("\tFile name " + Path.GetFileName(path) + " processed on " + DateTime.Now.ToLongDateString() + " " + DateTime.Now.ToLongTimeString());
             xa.WriteLine("\t" + lines + " payment records received and " + totalBoxCounts + " written." + "\n");
-            xa.WriteLine("\tHospital\tPayment Date\tAccount#\tPayment Amt\tAmount Due\tStatement Date\t" + "Admit/Other Date\tLockBox#");
+            xa.WriteLine("\tHospital\tPayment Date\tAccount#\tPayment Amt\tAmount Due\tStatement Date\t" + "Admit/Other Date\tLockBox#\tFHBAcct\tBox&Acct\tOrigin File\tTimestamp");
 
             foreach (FHB_Payment rcd in rcds)
             {
@@ -365,7 +390,12 @@ namespace FHB_Split_and_Distribute_HHSC
                    String.Format("{0:C2}", rcd.FhAmtd) + "\t" +
                    rcd.F1Stmt.ToShortDateString() + "\t" +
                    rcd.F1Admt.ToShortDateString() + "\t" +
-                   rcd.FhBoxn);
+                   rcd.FhBoxn + "\t" +
+                   rcd.FhAcct + "\t" +
+                   rcd.F1BoxAcct + "\t" +
+                   Path.GetFileName(path) + "\t" +
+                   DateTime.Now.ToString() 
+                   );
                 totalPmts += rcd.FhPmt;
             }
             // Write total payments line(s)
@@ -380,9 +410,10 @@ namespace FHB_Split_and_Distribute_HHSC
 
             Console.WriteLine(msg1);
             Debug.WriteLine(msg1);
-            //const string LogName = "C:\\Users\\Richa\\OneDrive\\1R\\Hawaii\\TestingData\\FHB\\LOG_Activity.txt";
-            const string LogName = "LOG_Activity.txt";
-            using (StreamWriter lg = File.AppendText(LogName))
+            
+            string logName = "LOG_Activity.txt";
+            logName = @"Logs_n_Data\LOG_Activity.txt";
+            using (StreamWriter lg = File.AppendText(logName))
             { lg.WriteLine($"{msg1} "); }
         }
     }

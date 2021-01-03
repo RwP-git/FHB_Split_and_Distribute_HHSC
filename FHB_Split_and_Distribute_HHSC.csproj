@@ -16,4 +16,8 @@
     </COMReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FileHelpers" Version="3.4.1" />
+  </ItemGroup>
+
 </Project>
